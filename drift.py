@@ -47,15 +47,16 @@ def main():
     #builder = build_field.PotentialField(plane, plane_shifted, g['nx'], g['ny'] + 1, g['nz'] + 1, 
                                 #g['idx_shield'], g['idx_ind1'], g['idx_ind2'], g['idx_coll'], g['idx_drift'], g['idx_ground'],
                                 #p['e_Ar'], p['e_fr4'], p['e_Cu'])
+                                
     builder = build_field.PotentialField(plane, plane_shifted, g['nx'], g['ny'] + 1, g['nz'] + 1, 
                             g['idx_shield'], g['idx_ind1'], g['idx_ind2'], g['idx_coll'], g['idx_drift'], g['idx_ground'],
                             materials.LiquidArgon.dielectric_permitivity, materials.FR4.dielectric_permitivity, materials.Copper.dielectric_permitivity)
     
     drift_potential, diel, boundary = builder.set_drift(p['V_drift'], p['V_shield'], p['V_ind1'], p['V_ind2'], p['V_coll'], p['V_ground'])
     #drift_potential, diel, boundary = builder.set_drift(0, 0, 0, 0, 0, 0)
-    shaper = geo.FieldShaper(g['n_strip'])
-    diel= shaper.extend_volume(diel, axis = 1)
-    pcb.plot(diel[g['idx_ind1']], "PCB – Base Pattern")
+    #shaper = geo.FieldShaper(g['n_strip'])
+    #diel= shaper.extend_volume(diel, axis = 1)
+    #pcb.plot(diel[g['idx_ind1']], "PCB – Base Pattern")
     # -------------------------------
     # Field calculation
     # -------------------------------
