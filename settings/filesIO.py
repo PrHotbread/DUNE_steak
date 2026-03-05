@@ -1,5 +1,8 @@
 import os
 import numpy as np
+import json
+from datetime import datetime
+
 
 
 class FieldIO:
@@ -66,3 +69,40 @@ class FieldIO:
         V = np.load(os.path.join(path, f"{namefile_potential}.npy")).astype(np.float32)
 
         return Ex, Ey, Ez, V
+    
+    import json
+
+
+    def save_parameters(self, g, p, args, runtime):
+
+        params = {
+            "date": str(datetime.now()),
+            "runtime_s": runtime,
+            "convergence_criterion": args.conv,
+            "geometry": g,
+            "physics": p
+        }
+        path = self._drift_path()
+        json_filename = f"{path}/{args.namefile}_parameters.json"
+        with open(json_filename, "w") as f:
+            json.dump(params, f, indent=4, default = float)
+        
+
+        txt_filename = f"{path}/{args.namefile}_parameters.txt"
+        with open(txt_filename, "w") as f:
+
+            f.write("Simulation parameters\n")
+            f.write("================================\n")
+            f.write(f"Date: {params['date']}\n")
+            f.write(f"Runtime: {runtime:.2f} s\n")
+            f.write(f"Convergence criterion: {args.conv}\n")
+
+            f.write("\nGeometry parameters [mm]:\n\n")
+            for key, value in g.items():
+                f.write(f"{key} = {value:.2f}\n")
+
+            f.write("\n############################\n")
+
+            f.write("\nPhysics parameters:\n\n")
+            for key, value in p.items():
+                f.write(f"{key} = {value:.2f}\n")
