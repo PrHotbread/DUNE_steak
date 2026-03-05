@@ -28,7 +28,7 @@ import numpy as np
 from numba import njit
 
 from .interpolation import linear_interp_field
-from .physics_parameters import (
+from .transportation import (
     longitudinal_diffusion,
     transverse_diffusion,
     coeffs_Astra,
@@ -37,8 +37,7 @@ from .physics_parameters import (
     mobility
 )
 
-
-#@nb.jit(nopython = True, parallel = True)
+@nb.jit(nopython = True, parallel = True)
 def elec_gun(init_position, ne, n_step, e_drift, vol, dm: float, te: float, x_s, x_v0, x_v1, x_v2, step_x, step_yz, TAr):
     """
     Simulate the drift of multiple ionization electrons in liquid argon.
@@ -66,8 +65,7 @@ def elec_gun(init_position, ne, n_step, e_drift, vol, dm: float, te: float, x_s,
     TAr : float
         Liquid argon temperature [K]
     """
-
-    # Storage arrays for all electrons
+    
     trajs = np.zeros((ne,3, n_step), dtype = np.float32)
     velocities = np.zeros((ne,3, n_step), dtype = np.float32)
     fields = np.zeros((ne, n_step), dtype = np.float32)
@@ -80,11 +78,12 @@ def elec_gun(init_position, ne, n_step, e_drift, vol, dm: float, te: float, x_s,
     # Parallel loop over electrons
     for e in nb.prange(ne):
         print(e)
-        traj, velocity, field, energy, mobility, transverse_coef, longitudinal_coef, collect = drift(
-            init_position[e], vol, e_drift, dm, 
-            step_x, step_yz, te, n_step, 
-            x_s, x_v0, x_v1, x_v2, TAr)
         
+        traj, velocity, field, energy, mobility, transverse_coef, longitudinal_coef, collect = drift(
+                                                                                                    init_position[e], vol, e_drift, dm, 
+                                                                                                    step_x, step_yz, te, n_step, 
+                                                                                                    x_s, x_v0, x_v1, x_v2, TAr  )
+                                                                                                    
 
         """ Fill arrays with simulation parameters """
         
@@ -104,24 +103,15 @@ def elec_gun(init_position, ne, n_step, e_drift, vol, dm: float, te: float, x_s,
         collects[e, 2] = collect[2]
         collects[e, 3] = collect[3]
         collects[e, 4] = collect[4]
-        """
-        trajs[e] = traj
-        velocities[e] = velocity
-        fields[e] = field
-        transverse_energies[e] = energy
-        mobilities[e] = mobility
-        transverse_coefs[e] = transverse_coef
-        longitudinal_coefs[e] = longitudinal_coef
-        collects[e] = collect
-        """
+
     return trajs, velocities, fields, mobilities, transverse_energies, transverse_coefs, longitudinal_coefs, collects
 
 
 
 
 
-#@njit
-def drift(position, volume, field, dielec, step_x, step_yz, Te, n_step, x_s, x_v0, x_v1, x_v2, TAr):#, step_field, n_step):
+@njit
+def drift(position, volume, field_map, dielec, step_x, step_yz, Te, n_step, x_s, x_v0, x_v1, x_v2, TAr):#, step_field, n_step):
 
     """
     Drift and diffusion of a single electron in liquid argon.
@@ -136,7 +126,7 @@ def drift(position, volume, field, dielec, step_x, step_yz, Te, n_step, x_s, x_v
     """ Initial position"""
 
     x, y, z = position
-    Ex, Ey, Ez, V = field
+    Ex, Ey, Ez, drift_potential = field_map
     
     
     # Counters for charge collection
@@ -151,6 +141,11 @@ def drift(position, volume, field, dielec, step_x, step_yz, Te, n_step, x_s, x_v
     XS = np.zeros(n_step, dtype = np.float32)
     YS = np.zeros(n_step, dtype = np.float32)
     ZS = np.zeros(n_step, dtype = np.float32)
+
+        # Electron velocity components
+    vx = np.zeros(n_step, dtype = np.float32)
+    vy = np.zeros(n_step, dtype = np.float32)
+    vz = np.zeros(n_step, dtype = np.float32)
                   
     # Step length
     S = np.zeros(n_step, dtype = np.float32)
@@ -158,19 +153,14 @@ def drift(position, volume, field, dielec, step_x, step_yz, Te, n_step, x_s, x_v
     # Transverse diffusion displacement
     transv_position = np.zeros(3, dtype = np.float32)
 
-    t = np.zeros(n_step, dtype = np.float32) #time
+    #t = np.zeros(n_step, dtype = np.float32) #time
     e = np.zeros(3, dtype = np.float32)
 
-    # Electron velocity components
-    vx = np.zeros(n_step, dtype = np.float32)
-    vy = np.zeros(n_step, dtype = np.float32)
-    vz = np.zeros(n_step, dtype = np.float32)
-    
-    test = np.zeros(n_step, dtype = np.float32)
 
     # Transport parameters
     Dl = np.zeros(n_step, dtype = np.float32) #Longitudinal diffusion coefficient
     Dt = np.zeros(n_step, dtype = np.float32) #Transverse diffusion coefficient
+
     sigmaL = np.zeros(n_step, dtype = np.float32) #Average longitudinal length
     sigmaT = np.zeros(n_step, dtype = np.float32) #Average transverse length
     mobilities = np.zeros(n_step, dtype = np.float32) #Mobility
@@ -195,15 +185,14 @@ def drift(position, volume, field, dielec, step_x, step_yz, Te, n_step, x_s, x_v
         e[0] = Ex0 * 1e-2 
         e[1] = Ey0 * 1e-2
         e[2] = Ez0 * 1e-2
-
         E = np.linalg.norm(e)
-        #mu = mobility(E, TAr)
-        """ Velocity composents for the induced signal calculation """
-        vx[ds] = np.float32(mobility(E, TAr) * e[0] * 1e-2) #mm/micros
-        vy[ds] = np.float32(mobility(E, TAr) * e[1] * 1e-2) #mm/micros
-        vz[ds] = np.float32(mobility(E, TAr) * e[2] * 1e-2) #mm/micros©
-        fields[ds] = E
+
         mobilities[ds] = mobility(E, TAr)
+        """ Velocity composents for the induced signal calculation """
+        vx[ds] = np.float32(mobilities[ds] * e[0] * 1e-2) #mm/micros
+        vy[ds] = np.float32(mobilities[ds] * e[1] * 1e-2) #mm/micros
+        vz[ds] = np.float32(mobilities[ds] * e[2] * 1e-2) #mm/micros
+        fields[ds] = E
         """ Drift velocity in Liquid Argon """
         V[ds] = mobilities[ds] * fields[ds] * 1e-2 #mm/micros
         #print(V[ds]) check
@@ -226,7 +215,6 @@ def drift(position, volume, field, dielec, step_x, step_yz, Te, n_step, x_s, x_v
         ZS[ds] = z + e[2] / E * S[ds] + tz
 
         x, y, z = XS[ds], YS[ds], ZS[ds]
-        """ Looking for the end point """
         if dielec[i,j,k] > 4. and ((XS[ds] > (x_v2 - step_x)) and (XS[ds] < (x_v2 + step_x))):# and XS[ds] < x_v2 + step_x): # charge collected by view 2
             view2 += 1
             break
@@ -244,6 +232,30 @@ def drift(position, volume, field, dielec, step_x, step_yz, Te, n_step, x_s, x_v
             break
         elif dielec[i,j,k] == -9999: # The end point for the electron drifting at large scale
             break
+        """ Looking for the end point """
+        """
+        if dielec[i,j,k] > 4.:
+            if x_v2 - step_x < XS[ds] < x_v2 + step_x:# and XS[ds] < x_v2 + step_x): # charge collected by view 2
+                view2 += 1
+                break
+            elif x_v1 - step_x < XS[ds] < x_v1 + step_x: # charge collected by view 1
+                view1 += 1
+                break
+            elif  x_v0 - step_x < XS[ds] < x_v0 + step_x: # charge collected by view 0
+                view0 += 1
+                break
+            elif  x_s - step_x < XS[ds] < x_s + step_x: # charge collected by shielding
+                shield += 1
+                break
+        elif dielec[i, j, k] == 4.:
+            if ((x_s + x_v0) / 2 - step_x < XS[ds] < x_v0 - step_x):
+                fr4_capture += 1
+                break
+
+        elif dielec[i, j, k] == -9999: #large scale condition
+            break
+    """
+
     """ Velocity and position storage"""
     
     traj = [XS, YS, ZS]

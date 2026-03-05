@@ -37,7 +37,7 @@ def dielectric_tensor(idx_shield, idx_ind1, idx_ind2, idx_coll,
 
     else:
         # Assign nominal dielectric and conductor regions
-        Matrix[idx_half_pcb_1:idx_ind1, plane == 0] = e_fr4
-        Matrix[idx_ind1, plane ==0] = e_Cu
+        Matrix[idx_half_pcb_1:idx_ind1, plane_shifted == 0] = e_fr4
+        Matrix[idx_ind1, plane_shifted ==0] = e_Cu
 
     return Matrix

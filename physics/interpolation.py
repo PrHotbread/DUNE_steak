@@ -1,6 +1,6 @@
 from numba import njit
 
-#@njit
+@njit
 def trilinear(x, y, z, x0, y0, z0, e000, e100, e010, e001, e110, e101, e011, e111, step_x, step_yz):
 
     """ 3D-Linear interpolation is identical to 2 2D-linear interpolation combined with a 1D-linear interpolation """
@@ -26,7 +26,7 @@ def trilinear(x, y, z, x0, y0, z0, e000, e100, e010, e001, e110, e101, e011, e11
     return e
     
 
-#@njit
+@njit
 def linear_interp_field(x, y, z, vol, i, j, k, step_x, step_yz, *field):
 
     """ Define drift volume to interpolate """
