@@ -2,19 +2,25 @@
 import numpy as np
 import json
 
-# Typage court pour la lisibilité
+# Typing
 f32 = np.float32
 i32 = np.int32
 
+def to_nearest(length, step):
+   return np.round(np.round(length / step) * step,2)
+   
+def index(length, step):
+    return i32(np.round(length/step))
+
 # ----------------------------
-# 1️⃣  Définitions par défaut
+# Default parameters
 # ----------------------------
 def default_parameters():
     return {
         "geometry": {
             "r_hole": f32(1.2),
             "d_hole": f32(2.94),
-            "shift": f32(0.0),
+            "shift": f32(0.5),
             "L_drift": f32(5.0),
             "L_pcb1": f32(3.2),
             "L_pcb2": f32(3.2),
@@ -57,7 +63,7 @@ def default_parameters():
     }
 
 # ----------------------------
-# 2️⃣  Fonction de mise à jour
+#  Update parameters json file
 # ----------------------------
 def set_param(key, val, ref):
     """Met à jour récursivement un dictionnaire de paramètres."""
@@ -78,20 +84,17 @@ def update_from_file(geom, json_path):
         set_param(k, v, geom)
     return geom
 
-def to_nearest(length, step):
-   return np.round(np.round(length / step) * step,2)
-   
-def index(length, step):
-    return i32(np.round(length/step))
 # ----------------------------
-# 3️⃣  Calculs géométriques dérivés
+#  Secondary parameters
 # ----------------------------
 def compute_derived(geom):
     """Ajoute les grandeurs calculées automatiquement"""
     g = geom["geometry"]
     p = geom["physics"]
     w = geom['weighting']
-    # Longueurs et indices
+    s = geom['simulation']
+
+    # Lengths and indexes
     g["hx"] = g["step"] * g["delta_x"]
     g["hyz"] = g["step"] * g["delta_yz"]
 
@@ -116,7 +119,7 @@ def compute_derived(geom):
     g['idx_coll'] = i32(index(g['x_coll'], g['step'] * g['delta_x']))
     g['idx_ground'] = i32(index(g['x_ground'], g['step'] * g['delta_x']))
 
-    # Potentiel de drift
+    # Drift potential
     p["V_drift"] = f32(p["V_shield"] - p["E_drift"] * (g["x_shield"] - g["x_drift"]))
 
     # Weighting parameters
@@ -144,15 +147,18 @@ def compute_derived(geom):
     w['idx_ind2_2D'] = i32(index(w['x_ind2_2D'], g['step'] * g['delta_x']))
     w['idx_coll_2D'] = i32(index(w['x_coll_2D'], g['step'] * g['delta_x']))
     w['idx_ground_2D'] = i32(index(w['x_ground_2D'], g['step'] * g['delta_x']))
-
     w['n_strip_2D'] = i32(g['n_strip'] + 6) 
+
+    # Electron drift parameters
+    s['n_time_step'] = np.int32(np.round(s['acquisition_time'])/s['te'])
+    s['drift_time'] = np.linspace(0, s['acquisition_time'], s['n_time_step'], dtype = np.float32 )
     return geom
 
 # ----------------------------
-# 4️⃣  Fonction principale
+# 4️⃣  
 # ----------------------------
 def get_parameters(json_file=None):
-    """Retourne un dictionnaire complet de paramètres pour la simulation"""
+    """ Return a complet dictionnary for the simulation """
     geom = default_parameters()
     if json_file:
         geom = update_from_file(geom, json_file)
