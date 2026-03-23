@@ -12,15 +12,22 @@ class DetectorGeometry:
         self.step = step
 
     def out_circle(self, mesh, z, y, r):
-
+        """
         Y, Z = np.meshgrid(
-            np.arange(self.ny) * self.step,
-            np.arange(self.nz) * self.step,
+            np.round(np.arange(self.ny) * self.step,2),
+            np.round(np.arange(self.nz) * self.step,2),
             indexing = 'ij'
         )
         mask = (Z - z)**2 + (Y - y)**2 <= r**2
         mesh[mask] = 1
-        
+        """
+        size = mesh.shape
+        for iy in range(size[0]):
+            for iz in range(size[1]):
+                if np.power(iz * self.step - z, 2) + np.power(iy * self.step - y, 2) < np.power(r,2):
+                    mesh[iy,iz] = 1
+        return mesh
+
         return mesh
     
     def empty_plane(self):
@@ -52,6 +59,29 @@ class PCB(DetectorGeometry):
         plane = self.circle_hole(plane, 0 + shift, 0, self.r_hole)
         print("Ly = %0.2f, Lz = %0.2f, ny = %i, nz = %i" %(Ly, Lz, self.ny, self.nz))
         return plane
+
+    def volume(self, field: np.ndarray, step_x:float, step_yz:float):
+        """
+        Generate a 3D coordinate grid corresponding to the field volume.
+
+        Parameters
+        ----------
+        field : ndarray (ny, nx, nz)
+            3D field or potential map
+        params : dict
+            Spatial discretization parameters
+
+        Returns
+        -------
+        vol : ndarray
+            3D meshgrid containing physical coordinates
+        """
+
+        return np.round(
+            np.meshgrid(
+                np.arange(0, field.shape[1] * step_yz, step_yz),
+                np.arange(0, field.shape[0] * step_x, step_x),
+                np.arange(0, field.shape[2] * step_yz, step_yz)), 3 )
 
 
 
@@ -120,77 +150,6 @@ class FieldShaper:
         extended = np.concatenate((unit, unit), axis=axis)
 
         return extended
-
-
-
-
-
-def shape(field_potential, n_strip: int, axis: str):
-    """
-    Extend a 3D field potential computed on a small window
-    by mirroring and concatenating it to build a larger volume.
-
-    The idea is to:
-    - compute the electric field on a reduced domain (unit cell)
-    - exploit symmetry / periodicity
-    - replicate the field to simulate a larger detector volume
-    """
-
-    if axis == "1":
-        # -------------------------------------------------------------
-        # Extension along axis=1 (typically Y direction)
-        # -------------------------------------------------------------
-
-        # Mirror the field along the Z direction
-        # This enforces a symmetric continuation of the potential
-        field_potential_reverse = field_potential[:, :, ::-1]
-
-        # Remove duplicated boundary planes to avoid overlapping nodes
-        field_potential_reverse = np.delete(field_potential_reverse, 0, axis=1)
-        field_potential_reverse = np.delete(field_potential_reverse, -1, axis=1)
-
-        # Concatenate original + mirrored field to build one periodic strip
-        strip = np.concatenate(
-            (field_potential, field_potential_reverse),
-            axis=1
-        )
-
-        # Initialize the extended window
-        window = strip.copy()
-
-        # Repeat the strip n_strip times to enlarge the domain
-        for i in range(n_strip - 1):
-            window = np.concatenate((window, strip), axis=1)
-
-        return window
-
-    elif axis == "2":
-        # -------------------------------------------------------------
-        # Extension along axis=2 (typically Z direction)
-        # -------------------------------------------------------------
-
-        # Mirror the field along the Z direction
-        field_potential_reverse = field_potential[:, :, ::-1]
-
-        # Remove duplicated boundary planes to ensure continuity
-        field_potential_reverse = np.delete(field_potential_reverse, 0, axis=2)
-        field_potential_reverse = np.delete(field_potential_reverse, -1, axis=2)
-
-        # Create a first extended window using mirror symmetry
-        mini_hex_window = np.concatenate(
-            (field_potential, field_potential_reverse),
-            axis=2
-        )
-
-        # Duplicate the window to simulate a larger periodic structure
-        # (e.g. hexagonal or tiled geometry)
-        hex_window = np.concatenate(
-            (mini_hex_window, mini_hex_window),
-            axis=2
-        )
-
-        return hex_window
-
 
 
 
@@ -275,28 +234,4 @@ field_2D_ext_2 = shaper.extend_plane(field_2D_ext, axis=1)
 
 pcb.plot(field_2D_ext_2, "PCB – Shifted Pattern")
 """
-def volume(field, params):
-    """
-    Generate a 3D coordinate grid corresponding to the field volume.
 
-    Parameters
-    ----------
-    field : ndarray (ny, nx, nz)
-        3D field or potential map
-    params : dict
-        Spatial discretization parameters
-
-    Returns
-    -------
-    vol : ndarray
-        3D meshgrid containing physical coordinates
-    """
-
-    vol = np.round(
-        np.meshgrid(
-            np.arange(0, field.shape[1] * params['hyz'], params['hyz']),
-            np.arange(0, field.shape[0] * params['hx'],  params['hyz']),
-            np.arange(0, field.shape[2] * params['hyz'], params['hyz'])
-        ),
-        3
-    )

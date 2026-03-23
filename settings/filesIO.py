@@ -4,7 +4,6 @@ import json
 from datetime import datetime
 
 
-
 class FieldIO:
     def __init__(self, base_path: str):
         self.base_path = base_path
@@ -74,7 +73,6 @@ class FieldIO:
 
 
     def save_parameters(self, g, p, args, runtime):
-
         params = {
             "date": str(datetime.now()),
             "runtime_s": runtime,
@@ -106,3 +104,7 @@ class FieldIO:
             f.write("\nPhysics parameters:\n\n")
             for key, value in p.items():
                 f.write(f"{key} = {value:.2f}\n")
+
+
+#def electronics_load(electronics_path, elec):
+    

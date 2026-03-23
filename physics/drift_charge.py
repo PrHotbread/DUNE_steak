@@ -126,7 +126,7 @@ def drift(position, volume, field_map, dielec, step_x, step_yz, Te, n_step, x_s,
     """ Initial position"""
 
     x, y, z = position
-    Ex, Ey, Ez, drift_potential = field_map
+    Ex, Ey, Ez, _ = field_map
     
     
     # Counters for charge collection

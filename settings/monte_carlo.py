@@ -11,12 +11,12 @@ class MonteCarlo:
             nz / 2 * step_yz
         ], dtype=np.float32)
     
-    @staticmethod
     def initial_position(self):
         return np.tile(self.center, (self.ne, 1))
     
+
     def set_position(self, x, y, z):
-        p = self.initial_position()
+        p = self.initial_position(self)
         p[:, 0] += x
         p[:, 1] += y
         p[:, 2] += z
@@ -29,6 +29,7 @@ class MonteCarlo:
         p[:, 0] += -4
         return p
     
+    
     def cylinder(self, radius, weight):
         p = self.initial_position()
         R =  radius * np.random.random( size = self.ne)
@@ -37,6 +38,7 @@ class MonteCarlo:
         p[:, 1] += R * np.sin(theta)
         p[:, 0] += weight * np.random.random(size = self.ne)
         return p
+    
 
     def spheric(self, radius):
         p = self.initial_position()

@@ -1,6 +1,7 @@
 # settings/parameters.py
 import numpy as np
 import json
+#import libRooFitJSONInterface
 
 # Typing
 f32 = np.float32
@@ -59,30 +60,9 @@ def default_parameters():
             "base": "/Users/pinchault/Documents/work/research/DUNE_steak/steak/results_field/test_newconf",
             "drift": "/Users/pinchault/Documents/work/research/DUNE_steak/steak/results_field/nominal",
             "results": "/Users/pinchault/Documents/work/research/DUNE_steak/steak/results_param_drift/",
+            "electronics":""
         }
     }
-
-# ----------------------------
-#  Update parameters json file
-# ----------------------------
-def set_param(key, val, ref):
-    """Met à jour récursivement un dictionnaire de paramètres."""
-    if key in ref:
-        if isinstance(val, dict):
-            for k, v in val.items():
-                set_param(k, v, ref[key])
-        else:
-            ref[key] = val
-    else:
-        print(f"⚠️  Unknown parameter '{key}'")
-
-def update_from_file(geom, json_path):
-    """Charge un fichier JSON et met à jour les valeurs par défaut"""
-    with open(json_path, 'r') as f:
-        user_params = json.load(f)
-    for k, v in user_params.items():
-        set_param(k, v, geom)
-    return geom
 
 # ----------------------------
 #  Secondary parameters
@@ -154,9 +134,29 @@ def compute_derived(geom):
     s['drift_time'] = np.linspace(0, s['acquisition_time'], s['n_time_step'], dtype = np.float32 )
     return geom
 
+
 # ----------------------------
-# 4️⃣  
+#  Update parameters json file
 # ----------------------------
+def set_param(key, val, ref):
+    """Met à jour récursivement un dictionnaire de paramètres."""
+    if key in ref:
+        if isinstance(val, dict):
+            for k, v in val.items():
+                set_param(k, v, ref[key])
+        else:
+            ref[key] = val
+    else:
+        print(f"⚠️  Unknown parameter '{key}'")
+
+def update_from_file(geom, json_path):
+    """Charge un fichier JSON et met à jour les valeurs par défaut"""
+    with open(json_path, 'r') as f:
+        user_params = json.load(f)
+    for k, v in user_params.items():
+        set_param(k, v, geom)
+    return geom
+
 def get_parameters(json_file=None):
     """ Return a complet dictionnary for the simulation """
     geom = default_parameters()
