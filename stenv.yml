@@ -1,11 +1,12 @@
 name: stenv
 channels:
+  - conda-forge
   - defaults
 dependencies:
   - matplotlib
   - numpy
   - numba
-  - python > 3.6
+  - python=3.10
   - pandas
   - scikit-learn
   - scipy
@@ -14,6 +15,7 @@ dependencies:
   - colorcet
   - bottleneck
   - pyyaml
-  - tqdm
+  - pip
+  - h5py
   - pip:
-    - jupyter==1.0.0
+    - jupyterlab
