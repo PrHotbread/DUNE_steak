@@ -1,0 +1,19 @@
+name: stenv
+channels:
+  - defaults
+dependencies:
+  - matplotlib
+  - numpy
+  - numba
+  - python > 3.6
+  - pandas
+  - scikit-learn
+  - scipy
+  - numexpr
+  - pytables
+  - colorcet
+  - bottleneck
+  - pyyaml
+  - tqdm
+  - pip:
+    - jupyter==1.0.0
