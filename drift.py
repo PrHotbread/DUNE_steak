@@ -42,21 +42,18 @@ def main():
     plane = pcb.hex_pattern(Ly = g['Ly'], Lz = g['Lz'], shift =  0.0)
     plane_shifted = pcb.hex_pattern(Ly = g['Ly'], Lz = g['Lz'], shift = g['shift'])
 
-    pcb.plot(plane, "PCB – Base Pattern")
+    pcb.plot(plane_shifted, "PCB – Base Pattern")
 
-    #builder = build_field.PotentialField(plane, plane_shifted, g['nx'], g['ny'] + 1, g['nz'] + 1, 
-                                #g['idx_shield'], g['idx_ind1'], g['idx_ind2'], g['idx_coll'], g['idx_drift'], g['idx_ground'],
-                                #p['e_Ar'], p['e_fr4'], p['e_Cu'])
-                                
     builder = build_field.PotentialField(plane, plane_shifted, g['nx'], g['ny'] + 1, g['nz'] + 1, 
                             g['idx_shield'], g['idx_ind1'], g['idx_ind2'], g['idx_coll'], g['idx_drift'], g['idx_ground'],
                             materials.LiquidArgon.dielectric_permitivity, materials.FR4.dielectric_permitivity, materials.Copper.dielectric_permitivity)
     
     drift_potential, diel, boundary = builder.set_drift(p['V_drift'], p['V_shield'], p['V_ind1'], p['V_ind2'], p['V_coll'], p['V_ground'])
     #drift_potential, diel, boundary = builder.set_drift(0, 0, 0, 0, 0, 0)
-    #shaper = geo.FieldShaper(g['n_strip'])
-    #diel= shaper.extend_volume(diel, axis = 1)
-    #pcb.plot(diel[g['idx_ind1']], "PCB – Base Pattern")
+    shaper = geo.FieldShaper(g['n_strip'])
+    diel = shaper.extend_volume(diel, axis = 1)
+    diel = shaper.extend_volume(diel, axis = 2)
+    pcb.plot(diel[g['idx_ind1']], "PCB – Base Pattern")
     # -------------------------------
     # Field calculation
     # -------------------------------
@@ -74,12 +71,9 @@ def main():
 
     # Compute electric field components
     setup_electric_field = build_field.ElectricField(g['hx'], g['hyz'])
-    E = setup_electric_field.compute_field(drift_potential, "weighting")
+    E = setup_electric_field.compute_field(drift_potential, "drift")
 
-    # Save results
-    f_io = filesIO.FieldIO(params['paths']['base'])
-    f_io.save_field(drift_potential, E[0], E[1], E[2], namefile = args.namefile, type_field="drift")
-    return None
+    return drift_potential, E
 
 # -------------------------------
 # Main execution
@@ -99,6 +93,13 @@ print("Holes shifted setup:", g['shift'])
 print("Convergence criterion:", args.conv)
 
 tstart = time.time()
-main()
+drift_potential, electric_field = main()
 tstop = time.time()
+runtime = tstop - tstart
+# Save results
+f_io = filesIO.FieldIO(params['paths']['base'])
+f_io.save_field(drift_potential, electric_field[0], electric_field[1], electric_field[2], 
+                namefile = args.namefile, type_field="drift")
+
+f_io.save_parameters(g, p, args, runtime)
 print("Field calculation took %.2f s for convergence criterion: %s V" % ((tstop - tstart), args.conv)) 

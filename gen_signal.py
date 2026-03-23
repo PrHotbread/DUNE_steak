@@ -6,19 +6,13 @@ from plot_geo import plot_PCB
 
 import plotting as plot
 
-from physics import physics_parameters
+from physics import transportation
 from physics import drift_charge
-from physics import signal_processing
+from physics import shockley_ramo
 import time
 import pandas as pd
 from scipy import interpolate
 from scipy import integrate
-
-
-import numpy as np
-import pandas as pd
-import numba as nb
-import matplotlib.pyplot as plt
 
 
 from settings import parameters
@@ -29,6 +23,8 @@ from settings import geometry as geo
 from physics.dielec import dielectric_tensor
 
 from physics import materials
+
+from settings import monte_carlo
 """ ###################################################################################################
 
 This module allows calculating the induced current on each view by using the Shockley-Ramo theorem.
@@ -43,71 +39,9 @@ g = params['geometry']
 p = params['physics']
 w = params['weighting']
 s = params['simulation']
-#@nb.jit(nopython = True, parallel = True)
-def induced_signal(ne, n_step, vol, x, y, z, vx, vy, vz, ew_view0, ew_view1, ew_view2, step_x = np.float32(g['hx'])):
-    Sind1 = np.zeros((ne, n_step), dtype = np.float32)
-    Sind2 = np.zeros((ne, n_step), dtype = np.float32)
-    S_view2 = np.zeros((ne, n_step), dtype = np.float32)
-    print(Sind1.shape)
-    print(x.shape)
-    print(vx.shape)
-    for e in nb.prange(ne):
-        print(e)
-        Sind1[e], Sind2[e], S_view2[e] = signal_processing.ramo(vol, x[e], y[e], z[e], vx[e], vy[e], vz[e], ew_view0, ew_view1, ew_view2, step_x, n_step)
-    return Sind1, Sind2, S_view2
-     
-     
-def charge(ne, ind1, ind2, coll):
-    q_view0 = np.zeros(ne, dtype = np.float32)
-    q_view1 = np.zeros(ne, dtype = np.float32)
-    q_view2 = np.zeros(ne, dtype = np.float32)
-    for e in range(ne):
-        q_view0[e] = integrate.trapz(ind1[e], g['drift_time'])
-        q_view1[e] = integrate.trapz(ind2[e], g['drift_time'])
-        q_view2[e] = integrate.trapz(coll[e], g['drift_time'])
-    return q_view0, q_view1, q_view2
+
         
         
-def drift_time_anode(ne, drift_time, x):
-    t_drift = np.zeros(ne, dtype = np.float32)
-    for e in range(ne):
-        x_drift = x[e][x[e] != 0]
-        coll = drift_time[len(x_drift) -1]
-        idx_shield = np.where(x[e]>g['x_shield'] - 0.55)
-        shield = drift_time[idx_shield[0][0]]
-        t_drift[e] = coll - shield
-    return t_drift
-    
-    
-def gen_weighting(path = params['paths']['base'], n_strip = np.int32(g['n_strip'])):
-    ew_view0 = cfg_io.load_field("weighting_Ex", "weighting_Ey", "weighting_Ez", "weighting", "view0")
-    ew_view1 = cfg_io.load_field("weighting_Ex", "weighting_Ey", "weighting_Ez", "weighting", "view1")
-    ew_view2 = cfg_io.load_field("weighting_Ex", "weighting_Ey", "weighting_Ez", "weighting", "view2")
-    return ew_view0, ew_view1, ew_view2
-   
-def set_position(position_vector):
-    z0 = e_drift[3].shape[2]/2 * np.float32(g['hyz'])
-    y0 = e_drift[3].shape[1]/2 * np.float32(g['hyz'])
-    x0 = 1
-    position_vector[:, 2] = z0 + 1 * np.float32(g['Lz']) * (2 * np.random.random(ne) - 1)
-    position_vector[:, 1] = y0 + 2 * np.float32(g['Ly']) * (2 * np.random.random(ne) - 1)
-    position_vector[:, 0] = x0
-    theta = np.random.random( size = ne) * 2 * np.pi
-    R =  np.random.random( size = ne ) * 1.7
-    """     position_vector[:, 2] = R * np.cos(theta) + z0
-    position_vector[:, 1] = R * np.sin(theta) + y0
-    position_vector[:, 0] = np.random.random(size = ne) * 2 """
-    return position_vector
-
-
-def traj3D(t):
-    fig, ax = plt.subplots()
-    ax = plt.axes(projection='3d')
-    for e in range(ne):
-        ax.plot(t[e, 2][t[e, 2] != 0], t[e, 1][t[e, 1] != 0], t[e, 0][t[e, 0] != 0], linewidth = 0.5)
-    ax.set_aspect('equal')
-    plt.show()
-    return None
 
 ######################## save part - csv/signal/traj #############################
 
@@ -203,8 +137,11 @@ cfg_io = filesIO.FieldIO(params['paths']['base'])
 """ File fields  """
 e_drift = cfg_io.load_field("drift_Ex", "drift_Ey", "drift_Ez", "drift")
 
+ew_view0 = cfg_io.load_field("weighting_Ex", "weighting_Ey", "weighting_Ez", "weighting", "view0")
+ew_view1 = cfg_io.load_field("weighting_Ex", "weighting_Ey", "weighting_Ez", "weighting", "view1")
+ew_view2 = cfg_io.load_field("weighting_Ex", "weighting_Ey", "weighting_Ez", "weighting", "view2")
+
 print("field shape", e_drift[0].shape)
-ew_view0, ew_view1, ew_view2 = gen_weighting()
 
 """ Set anode geometry"""
 pcb = geo.PCB(g['ny'] + 1, g['nz'] + 1, g['step'], g['r_hole'])
@@ -212,11 +149,11 @@ plane = pcb.hex_pattern(Ly = g['Ly'], Lz = g['Lz'], shift =  0.0)
 plane_shifted = pcb.hex_pattern(Ly = g['Ly'], Lz = g['Lz'], shift = g['shift'])
 
 """ Set Dielectric matrix """
-
 dm = dielectric_tensor(g["idx_shield"], g["idx_ind1"], g["idx_ind2"], g["idx_coll"],
                        g["nx"], g["ny"] + 1, g["nz"] + 1,
                        materials.LiquidArgon.dielectric_permitivity, materials.FR4.dielectric_permitivity, materials.Copper.dielectric_permitivity, 
                        plane, plane_shifted)
+
 
 shaper = geo.FieldShaper(g['n_strip'])
 dm = shaper.extend_volume(dm, axis = 1)
@@ -225,32 +162,77 @@ dm = shaper.extend_volume(dm, axis = 2)
 print("dielec", dm.shape)
 
 volume = pcb.volume(e_drift[3], g['hx'], g['hyz'])
-
+print("volume :", volume.shape)
 ne = np.int32(args.n)
-init_position = np.zeros((ne, 3), dtype  = np.float32)
 
-init_position = set_position(init_position)
 
+cfg_mc = monte_carlo.MonteCarlo(ne = np.int32(args.n), volume = volume, 
+                                step_x = g['hx'], step_yz = g['hyz'])
+
+vector_position = cfg_mc.set_position(x = -4, y = 0, z = 0)
+#vector_position = cfg_mc.set_hexagonal(ly = np.float32(g['Ly']), lz = np.float32(g['Ly']))
 
 """ start simulation """
 t1 = time.time()
-t, v, field, mu, te, tc, lc, c = drift_charge.elec_gun(init_position, ne, s['n_time_step'], e_drift, volume, dm, s['te'], 
+t, v, field, mu, te, tc, lc, c = drift_charge.elec_gun(vector_position, ne, s['n_time_step'], e_drift, volume, dm, s['te'], 
                                                         g['x_shield'], g['x_ind1'], g['x_ind2'], g['x_coll'], 
                                                         g['hx'], g['hyz'], 
                                                         materials.LiquidArgon.temperature)
-traj3D(t)
 
-s_view0, s_view1, s_view2 = induced_signal(ne, s['n_time_step'], volume, np.float32(t[:,0]), np.float32(t[:,1]), np.float32(t[:,2]), np.float32(v[:,0]), np.float32(v[:,1]), np.float32(v[:,2]), ew_view0,  ew_view1, ew_view2)
 
-#s_view0, s_view1, s_view2 = signal_processing.ramo(volume, 
-                                                   #np.float32(t[:,0]), np.float32(t[:,1]), np.float32(t[:,2]), 
-                                                   #np.float32(v[:,0]), np.float32(v[:,1]), np.float32(v[:,2]), 
-                                                   #ew_view0, ew_view1, ew_view2,
-                                                   #g['step'], s['n_time_step'])
+plot.plot_traj3D(t, ne)
+
+
+s_view0, s_view1, s_view2 = shockley_ramo.induced_signal(ne, s['n_time_step'], volume, 
+                                                             np.float32(t[:,0]), np.float32(t[:,1]), np.float32(t[:,2]), 
+                                                             np.float32(v[:,0]), np.float32(v[:,1]), np.float32(v[:,2]), 
+                                                             ew_view0,  ew_view1, ew_view2, g['hx'])
+
+
+params = shockley_ramo.SimulationParams(ne = ne, td = s['drift_time'], 
+                                        x =np.float32(t[:,0]), y = np.float32(t[:,1]), z = np.float32(t[:,2]))
+
+
+"""Charge calculation """
+q_view0 = params.charge(s_view0)
+q_view1 = params.charge(s_view1)
+q_view2 = params.charge(s_view2)
+
+""" Drift time in anode """
+
+drift_time = params.drift_time_anode(xs = g['x_shield'])
+
+"""Start and End Point"""
+xi, yi, zi = params.start_point()
+xf, yf, zf = params.start_point()
+
+""" Mean signal from simulation """
+S_view0 = np.sum(s_view0, axis = 0)
+S_view1 = np.sum(s_view1, axis = 0)
+S_view2 = np.sum(s_view2, axis = 0)
+
+cfg_processing = shockley_ramo.SignalProcessing(te = s['te'], ta = s['acquisition_time'], td = s['drift_time'], elec = 'bot')
+
+tc, sc_view0 = cfg_processing.convolved(S_view0)
+tc, sc_view1 = cfg_processing.convolved(S_view1)
+tc, sc_view2 = cfg_processing.convolved(S_view2)
+
+
+sample_time, sv0_output =  cfg_processing.daq(tc, sc_view0)
+sample_time, sv1_output =  cfg_processing.daq(tc, sc_view1)
+sample_time, sv2_output =  cfg_processing.daq(tc, sc_view2)
+
+
 
 #q_view0, q_view1, q_view2 = signal_processing.charge(ne, s_view0, s_view1, s_view2)
+te = s['drift_time']
+print(te.shape)
+print(s_view0.shape[0])
+plt.plot(s['drift_time'], s_view0[0])
+plt.show()
+plt.plot(tc, sc_view0)
+plt.show()
 
-t_drift = drift_time_anode(ne, s['drift_time'], t[:,0])
 
 t2 = time.time()
 print("Simulation  took: %f s" %(t2-t1))
@@ -258,23 +240,14 @@ print("Simulation  took: %f s" %(t2-t1))
 
 
 
-""" Mean signal from simulation """
-S_view0 = np.sum(s_view0, axis =0)
-S_view1 = np.sum(s_view1, axis =0)
-S_view2 = np.sum(s_view2, axis =0)
-
-""" Convolved signals """
-
-dQ_view0, sample, Sconv_view0, t_conv = signal_processing.conv(S_view0, "bot")
-dQ_view1, sample, Sconv_view1, t_conv = signal_processing.conv(S_view1, "bot")
-dQ_view2, sample, Sconv_view2, t_conv = signal_processing.conv(S_view2, "bot")
 
 
-print("Charge integration = ", np.trapz(dQ_view2, sample))
+plt.plot(s['drift_time'], S_view0)
+plt.show()
 
 
 Qtot = integrate.trapz(S_view2, s['drift_time'])/np.sum(c[:,2], axis = 0)
-plot.plot_electron([S_view0, S_view1, S_view2], Qtot, t_conv, Sconv_view0, Sconv_view1, Sconv_view2, sample, dQ_view0, dQ_view1, dQ_view2)
+plot.plot_electron([S_view0, S_view1, S_view2], s['drift_time'], Qtot, tc, sc_view0, sc_view1, sc_view2, sample_time, sv0_output, sv1_output, sv2_output)
 print("Charge total = ", Qtot)
 
 field_mean = np.mean(field[c[:,2] == 1], axis = 0)
