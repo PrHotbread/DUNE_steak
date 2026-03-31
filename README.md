@@ -32,7 +32,7 @@ The geometry of the readout plane is given in:
 
 :warning: This simulation is hardcoded to be performed with the perforated plane readout technology (can't be used for the wire chambers).
 
-The input agreement values for simulation can be modified in:
+The input arguments values for simulation can be modified in:
 `settings/args.py`
 
 ## Field STEAK
@@ -41,4 +41,14 @@ To launch <b>drift field calculation</b>, type `python drift.py` with the follow
 
 * `-conv` give a stopping criterion for the finite difference method <br/>, (default value 0.1 V)
 * `-namefile` give a name for the output file, (default name 'drift') 
-* '-
+* `-s` give a input setup as json file, (default parameters)
+* `-o` select True or False to save an output txt and json file with all parameters used (default True)
+
+
+To launch <b>weighting field calculation</b>, type `python weighting.py` with the following arguments:<br/>
+
+* `-view` : select the induction view among ['view0, view1, view2']
+* `-conv` : give a stopping criterion for the finite difference method <br/>, (default value 0.1 V)
+* `-namefile` : give a name for the output file, (default name 'drift') 
+* `-s` : give a input setup as json file, (default parameters)
+* `-o` : select True or False to save an output txt and json file with all parameters used (default True)
