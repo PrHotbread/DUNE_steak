@@ -80,14 +80,7 @@ class DriftInitialCondition:
         field = np.tile(V, (self.nz, self.ny, 1)).T
         field = self.set_dirichlet(field, self.u_d, self.u_g)
         field = self.apply_electrodes(field)
-
         return field
-
-
-
-
-
-
 
 
 
@@ -112,13 +105,13 @@ class WeightingInitialCondition:
 
     
     def _set_view(self, view: str):
-        if view == "view0":
+        if view == "0":
             return self.idx_i1
             #return self.g['idx_ind1'], self.w['idx_ind1_2D']
-        elif view == "view1":
+        elif view == "1":
             #return self.g['idx_ind2'], self.w['idx_ind2_2D']
             return self.idx_i2
-        elif view == "view2":
+        elif view == "2":
             return self.idx_c
             #return self.g['idx_coll'], self.w['idx_coll_2D']
         else:
@@ -157,7 +150,7 @@ class WeightingInitialCondition:
             lmaxStrip = int(field.shape[1] / 2 + self.ny)
 
         else:
-            raise ValueError("Invalid view index for strip definition")
+            raise ValueError(f"Invalid index view: {view_idx}")
 
         if strip_shifted:
             idx_shift = int(round(self.shift / self.step))
