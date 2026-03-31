@@ -1,7 +1,7 @@
 # STEAK
 
 
-<img src="figs/PyWavesLogo.png" width="250">
+<img src="figs/steakLogo.png" width="250">
 
 ## How to run STEAK
 
