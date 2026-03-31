@@ -32,7 +32,7 @@ The geometry of the readout plane is given in:
 
 :warning: This simulation is hardcoded to be performed with the perforated plane readout technology (can't be used for the wire chambers).
 
-The input agreements value for simulation can be modified in:
+The input agreement values for simulation can be modified in:
 `settings/args.py`
 
 ## Field STEAK
