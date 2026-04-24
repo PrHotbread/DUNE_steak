@@ -37,18 +37,26 @@ The input arguments values for simulation can be modified in:
 
 ## Field STEAK
 
-To launch <b>drift field calculation</b>, type `python drift.py` with the following arguments:<br/>
+To launch <b>drift field calculation</b>, run:
 
-* `-conv` give a stopping criterion for the finite difference method <br/>, (default value 0.1 V)
-* `-namefile` give a name for the output file, (default name 'drift') 
-* `-s` give a input setup as json file, (default parameters)
-* `-o` select True or False to save an output txt and json file with all parameters used (default True)
+`python drift.py` 
+
+with the following arguments:<br/>
+
+* `-conv` sets the stopping criterion for the finite difference method <br/>, (default: 0.1 V)
+* `-namefile` specifies the name of the output file (default: 'drift')
+* `-s` provides an input setup as a JSON file (default parameters are used if not specified)
+* `-o` set to True or False to save output .txt and .json files with all parameters used (default: True)
 
 
-To launch <b>weighting field calculation</b>, type `python weighting.py` with the following arguments:<br/>
+To launch <b>weighting field calculation</b>, run:
 
-* `-view` : select the induction view among ('0', '1', '2')
-* `-conv` : give a stopping criterion for the finite difference method <br/>, (default value 0.1 V)
-* `-namefile` : give a name for the output file, (default name 'drift') 
-* `-s` : give a input setup as json file, (default parameters)
-* `-o` : select True or False to save an output txt and json file with all parameters used (default True)
+`python weighting.py` 
+
+with the following arguments:<br/>
+
+* `-view` : selects the induction view among ('0', '1', '2')
+* `-conv` : sets the stopping criterion for the finite difference method <br/>, (default: 0.1 V)
+* `-namefile` : specifies the name of the output file (default: 'weighting')
+* `-s` : provides an input setup as a JSON file (default parameters are used if not specified)
+* `-o` : set to True or False to save output .txt and .json files with all parameters used (default: True)
