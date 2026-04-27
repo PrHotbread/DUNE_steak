@@ -48,6 +48,9 @@ with the following arguments:<br/>
 * `-s` provides an input setup as a JSON file (default parameters are used if not specified)
 * `-o` set to True or False to save output .txt and .json files with all parameters used (default: True)
 
+To launch <b>drift field visualization</b>, run:
+`python plotting/plot_driftfield.py` 
+
 
 To launch <b>weighting field calculation</b>, run:
 
