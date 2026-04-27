@@ -51,6 +51,8 @@ with the following arguments:<br/>
 To launch <b>drift field visualization</b>, run:
 `python plotting/plot_driftfield.py` 
 
+<img src="figs/equipotentialsDrift.png" width="250">
+<img src="figs/QuiverDriftFieldROI.png" width="250">
 
 To launch <b>weighting field calculation</b>, run:
 
