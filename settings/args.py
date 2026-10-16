@@ -20,6 +20,12 @@ def drift():
         help='Optional setup file', 
         default=''
     )
+    parser.add_argument(
+        '-o', 
+        dest='output', 
+        help='Select', 
+        default=''
+    )
     return parser.parse_args()
 
 
@@ -37,7 +43,7 @@ def weighting():
     parser.add_argument(
         '-view',
         help="Choses your view among: [view0, view1, view2]",
-        choices=['view0', 'view1', 'view2'],
+        choices=['0', '1', '2'],
         required=True
     )
 
